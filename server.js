@@ -8,7 +8,7 @@ app.use(express.json());
 
 // Configuração correta do SDK novo (v2)
 const mp = new mercadopago.MercadoPagoConfig({
-  accessToken: 'APP_USR-3702115853462555-030707-e4b165d81225852654928f2919151828-1536385540'
+  accessToken: process.env.MERCADOPAGO_TOKEN
 });
 
 const preferenceClient = new mercadopago.Preference(mp);
