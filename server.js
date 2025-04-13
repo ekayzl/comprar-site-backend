@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuração correta do SDK novo (v2)
+// Configuração do SDK Mercado Pago
 const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_TOKEN
 });
@@ -30,6 +30,8 @@ app.post('/api/pagar', async (req, res) => {
   const data = pacotes[pacote];
   if (!data) return res.status(400).send("Pacote inválido");
 
+  const finalUrl = "https://mensagemdeerro.netlify.app"; // URL final única
+
   const body = {
     items: [{
       title: data.title,
@@ -38,18 +40,15 @@ app.post('/api/pagar', async (req, res) => {
       unit_price: data.unit_price
     }],
     back_urls: {
-      success: "https://mensagemdeerro.netlify.app", // Verifique se é HTTPS
-      failure: "https://mensagemdeerro.netlify.app/erro", // URL para falha
-      pending: "https://mensagemdeerro.netlify.app/pendente" // URL para pendente
+      success: finalUrl,
+      failure: finalUrl,
+      pending: finalUrl
     },
     auto_return: "approved"
   };
 
   try {
-    // Criando a preferência de pagamento
     const preference = await preferenceClient.create({ body });
-    
-    // Retornando o link de pagamento gerado
     res.json({ link: preference.init_point });
   } catch (error) {
     console.error("Erro ao criar preferência:", error.message);
