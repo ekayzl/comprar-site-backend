@@ -37,12 +37,11 @@ app.post('/api/pagar', async (req, res) => {
       currency_id: "BRL",
       unit_price: data.unit_price
     }],
-    back_urls: {
-      success: "https://google.com",
-      failure: "https://google.com",
-      pending: "https://google.com"
-    },
-    auto_return: "approved"
+back_urls: {
+  success: "https://mensagemdeerro.netlify.app"
+},
+auto_return: "approved"
+
   };
 
   try {
