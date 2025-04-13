@@ -37,22 +37,25 @@ app.post('/api/pagar', async (req, res) => {
       currency_id: "BRL",
       unit_price: data.unit_price
     }],
-back_urls: {
-  success: "https://mensagemdeerro.netlify.app"
-},
-auto_return: "approved"
-
+    back_urls: {
+      success: "https://mensagemdeerro.netlify.app", // Verifique se é HTTPS
+      failure: "https://mensagemdeerro.netlify.app/erro", // URL para falha
+      pending: "https://mensagemdeerro.netlify.app/pendente" // URL para pendente
+    },
+    auto_return: "approved"
   };
 
   try {
+    // Criando a preferência de pagamento
     const preference = await preferenceClient.create({ body });
+    
+    // Retornando o link de pagamento gerado
     res.json({ link: preference.init_point });
   } catch (error) {
     console.error("Erro ao criar preferência:", error.message);
     res.status(500).json({ error: "Erro ao gerar link de pagamento" });
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
