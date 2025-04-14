@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuração do SDK Mercado Pago
+// Configuração correta do SDK novo (v2)
 const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_TOKEN
 });
@@ -24,13 +24,15 @@ app.post('/api/pagar', async (req, res) => {
     premium: {
       title: "2.000 seguidores + bônus",
       unit_price: 1.99
+    },
+    premiumzao: {
+      title: "2.000 seguidores + curtidas + views + bônus secreto",
+      unit_price: 2.99
     }
   };
 
   const data = pacotes[pacote];
   if (!data) return res.status(400).send("Pacote inválido");
-
-  const finalUrl = "https://mensagemdeerro.netlify.app"; // URL final única
 
   const body = {
     items: [{
@@ -40,9 +42,9 @@ app.post('/api/pagar', async (req, res) => {
       unit_price: data.unit_price
     }],
     back_urls: {
-      success: finalUrl,
-      failure: finalUrl,
-      pending: finalUrl
+      success: "https://mensagemdeerro.netlify.app",
+      failure: "https://mensagemdeerro.netlify.app/erro",
+      pending: "https://mensagemdeerro.netlify.app/pendente"
     },
     auto_return: "approved"
   };
