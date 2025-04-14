@@ -6,7 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuração correta do SDK novo (v2)
 const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_TOKEN
 });
@@ -14,7 +13,7 @@ const mp = new mercadopago.MercadoPagoConfig({
 const preferenceClient = new mercadopago.Preference(mp);
 
 app.post('/api/pagar', async (req, res) => {
-  const { pacote } = req.body;
+  const { pacote, valor } = req.body;
 
   const pacotes = {
     basico: {
@@ -31,15 +30,24 @@ app.post('/api/pagar', async (req, res) => {
     }
   };
 
-  const data = pacotes[pacote];
-  if (!data) return res.status(400).send("Pacote inválido");
+  let item;
+  if (pacote === "personalizado" && valor) {
+    item = {
+      title: "Pacote personalizado com bônus",
+      unit_price: Number(valor),
+    };
+  } else if (pacotes[pacote]) {
+    item = pacotes[pacote];
+  } else {
+    return res.status(400).json({ error: "Pacote inválido" });
+  }
 
   const body = {
     items: [{
-      title: data.title,
+      title: item.title,
       quantity: 1,
       currency_id: "BRL",
-      unit_price: data.unit_price
+      unit_price: item.unit_price
     }],
     back_urls: {
       success: "https://mensagemdeerro.netlify.app",
