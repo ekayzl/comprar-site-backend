@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mercadopago = require('mercadopago');
+const fetch = require('node-fetch'); // ADICIONADO para fazer o envio ao Google Sheets
 
 const app = express();
 app.use(cors());
@@ -13,7 +14,7 @@ const mp = new mercadopago.MercadoPagoConfig({
 const preferenceClient = new mercadopago.Preference(mp);
 
 app.post('/api/pagar', async (req, res) => {
-  const { pacote, valor } = req.body;
+  const { pacote, valor, instagram, telefone } = req.body;
 
   const pacotes = {
     basico: {
@@ -40,6 +41,23 @@ app.post('/api/pagar', async (req, res) => {
     item = pacotes[pacote];
   } else {
     return res.status(400).json({ error: "Pacote inválido" });
+  }
+
+  // Enviar dados para o Google Sheets
+  try {
+    await fetch("https://script.google.com/macros/s/AKfycbz6wqMu-g40bs5bst9ekh_BuX91GIaoXpcRPvZOkdGPRET-J1-R86ab8eCPu-3s9NFcow/exec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instagram: instagram || "não informado",
+        telefone: telefone || "não informado",
+        pacote,
+        valor: item.unit_price,
+        data: new Date().toLocaleString("pt-BR")
+      })
+    });
+  } catch (err) {
+    console.error("Erro ao enviar dados ao Google Sheets:", err.message);
   }
 
   const body = {
