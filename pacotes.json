@@ -1,9 +1,23 @@
 [
-    { "id": "seg_1k", "nome": "1.000 seguidores", "preco": 0.99 },
-    { "id": "seg_2k", "nome": "2.000 seguidores", "preco": 1.99 },
-    { "id": "seg_5k", "nome": "5.000 seguidores", "preco": 4.99 },
-    { "id": "curt_500", "nome": "500 curtidas", "preco": 0.99 },
-    { "id": "curt_1k", "nome": "1.000 curtidas", "preco": 1.89 },
-    { "id": "curt_3k", "nome": "3.000 curtidas", "preco": 3.99 }
-  ]
-  
+  {
+    "nome": "Pacote Básico",
+    "descricao": "100 seguidores",
+    "valor": 0.99,
+    "entrega": "Entrega padrão",
+    "reposicao": "Não"
+  },
+  {
+    "nome": "Pacote Premium",
+    "descricao": "500 seguidores",
+    "valor": 1.99,
+    "entrega": "Rápida",
+    "reposicao": "Sim"
+  },
+  {
+    "nome": "Pacote Premiumzão",
+    "descricao": "1000 seguidores",
+    "valor": 2.99,
+    "entrega": "Imediata",
+    "reposicao": "Sim"
+  }
+]

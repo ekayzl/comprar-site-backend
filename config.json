@@ -1,8 +1,6 @@
 {
-    "modoPagamento": "mercadopago",
-    "tokenMercadoPago": "",
-    "whatsappManual": "https://wa.me/5511999999999",
-    "mostrarUpsell": true,
-    "popupAtivado": true
-  }
-  
+  "mostrarPopup": "Sim",
+  "mostrarUpsell": "Sim",
+  "modoPagamento": "mercadopago",
+  "tokenMercadoPago": "APP_USR-3702115853462555-030707-e4b165d81225852654928f2919151828-1536385540"
+}
