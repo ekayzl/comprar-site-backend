@@ -1,18 +1,9 @@
 [
-    {
-      "id": "seg_1k",
-      "nome": "1.000 seguidores",
-      "preco": 0.99
-    },
-    {
-      "id": "curt_1k",
-      "nome": "1.000 curtidas",
-      "preco": 1.89
-    },
-    {
-      "id": "view_5k",
-      "nome": "5.000 views",
-      "preco": 2.49
-    }
+    { "id": "seg_1k", "nome": "1.000 seguidores", "preco": 0.99 },
+    { "id": "seg_2k", "nome": "2.000 seguidores", "preco": 1.99 },
+    { "id": "seg_5k", "nome": "5.000 seguidores", "preco": 4.99 },
+    { "id": "curt_500", "nome": "500 curtidas", "preco": 0.99 },
+    { "id": "curt_1k", "nome": "1.000 curtidas", "preco": 1.89 },
+    { "id": "curt_3k", "nome": "3.000 curtidas", "preco": 3.99 }
   ]
   
