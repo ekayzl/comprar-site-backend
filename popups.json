@@ -1,0 +1,19 @@
+[
+    {
+      "ativo": true,
+      "tipo": "upsell",
+      "titulo": "😱 Oferta exclusiva!",
+      "mensagem": "Por apenas R$ 1,20 a mais leve curtidas, views, bônus secreto e suporte VIP!",
+      "precoAdicional": 1.2,
+      "textoBotao": "Quero esse pacote melhor!"
+    },
+    {
+      "ativo": true,
+      "tipo": "popup",
+      "titulo": "🔥 Oferta limitada!",
+      "mensagem": "Só hoje! Desbloqueie 3 bônus surpresa com esse pacote!",
+      "precoAdicional": 0,
+      "textoBotao": "Quero desbloquear!"
+    }
+  ]
+  

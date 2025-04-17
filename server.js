@@ -111,6 +111,25 @@ app.post('/admin/pacotes', (req, res) => {
   res.json({ status: 'salvo' });
 });
 
+// POPUPS
+const POPUPS_PATH = path.join(__dirname, 'popups.json');
+
+function getPopups() {
+  if (!fs.existsSync(POPUPS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(POPUPS_PATH, 'utf8'));
+}
+
+app.get('/admin/popups', (req, res) => {
+  const popups = getPopups();
+  res.json(popups);
+});
+
+app.post('/admin/popups', (req, res) => {
+  fs.writeFileSync(POPUPS_PATH, JSON.stringify(req.body, null, 2));
+  res.json({ status: 'salvo' });
+});
+
+
 // LOGIN FIXO (ajustar depois)
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
