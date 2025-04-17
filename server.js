@@ -92,6 +92,20 @@ app.post('/api/pagar', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+// Rota de login para o painel admin
+app.post('/login', (req, res) => {
+  const { email, password } = req.body;
+
+  const ADMIN_EMAIL = 'admin@admin.com';
+  const ADMIN_PASSWORD = '123456'; // Troque por uma senha segura depois
+
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    return res.status(200).json({ message: 'Login bem-sucedido' });
+  } else {
+    return res.status(401).json({ error: 'Email ou senha inválidos' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
