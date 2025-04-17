@@ -1,52 +1,100 @@
 const express = require('express');
 const cors = require('cors');
 const mercadopago = require('mercadopago');
-const fs = require('fs');
 const fetch = require('node-fetch');
-const path = require('path');
 
 const app = express();
-app.use(cors({ origin: '*', credentials: true }));
+
+app.use(cors({
+  origin: 'https://paineladministrador.netlify.app',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 app.use(express.json());
-
-const CONFIG_PATH = path.join(__dirname, 'config.json');
-const PACOTES_PATH = path.join(__dirname, 'pacotes.json');
-
-function getConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) return {};
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-}
-function getPacotes() {
-  if (!fs.existsSync(PACOTES_PATH)) return {};
-  return JSON.parse(fs.readFileSync(PACOTES_PATH, 'utf8'));
-}
 
 const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_TOKEN
 });
+
 const preferenceClient = new mercadopago.Preference(mp);
 
+// Configuração de painel (em memória)
+let config = {
+  popup: true,
+  upsell: true,
+  modo: "mercadopago" // ou "manual"
+};
+
+// Login do painel admin
+app.post('/login', (req, res) => {
+  const { email, password } = req.body;
+  const ADMIN_EMAIL = 'admin@admin.com';
+  const ADMIN_PASSWORD = '123456';
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    return res.status(200).json({ message: 'Login bem-sucedido' });
+  } else {
+    return res.status(401).json({ error: 'Email ou senha inválidos' });
+  }
+});
+
+// Obter config atual (opcional para exibir no painel)
+app.get('/api/config', (req, res) => {
+  res.json(config);
+});
+
+// Alterar popup ou upsell
+app.post('/api/config-toggle', (req, res) => {
+  const { tipo } = req.body;
+  if (tipo === "popup" || tipo === "upsell") {
+    config[tipo] = !config[tipo];
+    return res.json({ [tipo]: config[tipo] });
+  }
+  return res.status(400).json({ error: "Tipo inválido" });
+});
+
+// Alterar método de pagamento
+app.post('/api/config-pagamento', (req, res) => {
+  const { modo } = req.body;
+  if (modo === "mercadopago" || modo === "manual") {
+    config.modo = modo;
+    return res.json({ modo });
+  }
+  return res.status(400).json({ error: "Modo inválido" });
+});
+
+const pacotes = {
+  basico: { title: "1.000 seguidores reais", unit_price: 0.99 },
+  premium: { title: "2.000 seguidores + bônus", unit_price: 1.99 },
+  premiumzao: { title: "2.000 seguidores + curtidas + views + bônus secreto", unit_price: 2.99 },
+  seg_1k: { title: "1.000 seguidores", unit_price: 0.99 },
+  seg_2k: { title: "2.000 seguidores", unit_price: 1.99 },
+  seg_5k: { title: "5.000 seguidores", unit_price: 4.99 },
+  curt_500: { title: "500 curtidas", unit_price: 0.99 },
+  curt_1k: { title: "1.000 curtidas", unit_price: 1.89 },
+  curt_3k: { title: "3.000 curtidas", unit_price: 3.99 },
+  view_1k: { title: "1.000 views", unit_price: 0.79 },
+  view_5k: { title: "5.000 views", unit_price: 2.49 },
+  view_10k: { title: "10.000 views", unit_price: 4.90 }
+};
+
+// Rota de pagamento
 app.post('/api/pagar', async (req, res) => {
   const { pacote, valor, instagram, telefone } = req.body;
-  const config = getConfig();
-  const pacotes = getPacotes();
 
   let item;
-
-  if (pacote === 'personalizado' && valor) {
-    item = { title: 'Pacote personalizado', unit_price: Number(valor) };
+  if (pacote === "personalizado" && valor) {
+    item = {
+      title: "Pacote personalizado com bônus",
+      unit_price: Number(valor),
+    };
+  } else if (pacotes[pacote]) {
+    item = pacotes[pacote];
   } else {
-    const encontrado = pacotes.find(p => p.id === pacote);
-    if (encontrado) {
-      item = { title: encontrado.nome, unit_price: Number(encontrado.preco) };
-    }
+    return res.status(400).json({ error: "Pacote inválido" });
   }
 
-  if (!item) {
-    return res.status(400).json({ error: 'Pacote inválido' });
-  }
-
-  // Enviar ao Google Sheets
+  // Salvar no Google Sheets
   try {
     await fetch("https://script.google.com/macros/s/AKfycbz6wqMu-g40bs5bst9ekh_BuX91GIaoXpcRPvZOkdGPRET-J1-R86ab8eCPu-3s9NFcow/exec", {
       method: "POST",
@@ -60,15 +108,15 @@ app.post('/api/pagar', async (req, res) => {
       })
     });
   } catch (err) {
-    console.error("Erro ao enviar dados ao Sheets:", err.message);
+    console.error("Erro ao enviar dados ao Google Sheets:", err.message);
   }
 
-  // Modo manual (WhatsApp)
-  if (config.modoPagamento === 'manual') {
-    return res.json({ link: config.whatsappManual || "https://wa.me/5511999999999" });
+  // Verifica o modo de pagamento atual
+  if (config.modo === "manual") {
+    return res.json({ manual: true });
   }
 
-  // Modo Mercado Pago
+  // Geração de link Mercado Pago
   const body = {
     items: [{
       title: item.title,
@@ -93,52 +141,8 @@ app.post('/api/pagar', async (req, res) => {
   }
 });
 
-// ROTAS ADMIN
-app.get('/admin/config', (req, res) => {
-  const config = getConfig();
-  res.json(config);
-});
-app.post('/admin/config', (req, res) => {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(req.body, null, 2));
-  res.json({ status: 'salvo' });
-});
-app.get('/admin/pacotes', (req, res) => {
-  const pacotes = getPacotes();
-  res.json(pacotes);
-});
-app.post('/admin/pacotes', (req, res) => {
-  fs.writeFileSync(PACOTES_PATH, JSON.stringify(req.body, null, 2));
-  res.json({ status: 'salvo' });
-});
-
-// POPUPS
-const POPUPS_PATH = path.join(__dirname, 'popups.json');
-
-function getPopups() {
-  if (!fs.existsSync(POPUPS_PATH)) return [];
-  return JSON.parse(fs.readFileSync(POPUPS_PATH, 'utf8'));
-}
-
-app.get('/admin/popups', (req, res) => {
-  const popups = getPopups();
-  res.json(popups);
-});
-
-app.post('/admin/popups', (req, res) => {
-  fs.writeFileSync(POPUPS_PATH, JSON.stringify(req.body, null, 2));
-  res.json({ status: 'salvo' });
-});
-
-
-// LOGIN FIXO (ajustar depois)
-app.post('/login', (req, res) => {
-  const { email, password } = req.body;
-  if (email === 'admin@admin.com' && password === '123456') {
-    return res.status(200).json({ message: 'Login bem-sucedido' });
-  } else {
-    return res.status(401).json({ error: 'Email ou senha inválidos' });
-  }
-});
-
+// Start
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
