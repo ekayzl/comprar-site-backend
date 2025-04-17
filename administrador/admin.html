@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel Admin</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f0f2d;
+      color: white;
+      margin: 0;
+      padding: 0;
+    }
+
+    .login-container, .painel-container {
+      max-width: 600px;
+      margin: 80px auto;
+      background-color: #1d1d44;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(252, 212, 0, 0.2);
+      text-align: center;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #fcd400;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      cursor: pointer;
+      padding: 10px 15px;
+      background-color: #2b2b6c;
+      border-radius: 8px;
+    }
+
+    .tab.active {
+      background-color: #fcd400;
+      color: #000;
+      font-weight: bold;
+    }
+
+    #editor, #pedidos {
+      display: none;
+      text-align: left;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      background-color: #0f0f2d;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #444;
+      padding: 8px;
+    }
+
+    th {
+      background-color: #fcd400;
+      color: #000;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="login-container" id="login">
+  <h2>Login Admin</h2>
+  <input type="password" id="senha" placeholder="Digite a senha" />
+  <button onclick="validarSenha()">Entrar</button>
+</div>
+
+<div class="painel-container hidden" id="painel">
+  <h2>Área Administrativa</h2>
+
+  <div class="tabs">
+    <div class="tab active" onclick="abrirAba('editor')">Pacotes</div>
+    <div class="tab" onclick="abrirAba('pedidos')">Pedidos</div>
+  </div>
+
+  <!-- Editor JSON -->
+  <div id="editor">
+    <h3>Editar pacotes.json</h3>
+    <textarea id="jsonInput" rows="20"></textarea>
+    <button onclick="salvarJSON()">Salvar</button>
+  </div>
+
+  <!-- Tabela de Pedidos -->
+  <div id="pedidos">
+    <h3>Pedidos recebidos</h3>
+    <div id="tabelaPedidos">Carregando...</div>
+  </div>
+</div>
+
+<script>
+  const SENHA_CORRETA = "OffDuzz1105@";
+
+  function validarSenha() {
+    const senha = document.getElementById("senha").value;
+    if (senha === SENHA_CORRETA) {
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("painel").classList.remove("hidden");
+      abrirAba('editor');
+      carregarJSON();
+    } else {
+      alert("Senha incorreta.");
+    }
+  }
+
+  function abrirAba(aba) {
+    document.getElementById("editor").style.display = 'none';
+    document.getElementById("pedidos").style.display = 'none';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.tab[onclick="abrirAba('${aba}')"]`).classList.add('active');
+    document.getElementById(aba).style.display = 'block';
+
+    if (aba === 'pedidos') carregarPedidos();
+  }
+
+  function carregarJSON() {
+    fetch("https://seguidores-api.onrender.com/pacotes.json")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("jsonInput").value = JSON.stringify(data, null, 2);
+      })
+      .catch(err => {
+        document.getElementById("jsonInput").value = "Erro ao carregar o JSON: " + err;
+      });
+  }
+
+  function salvarJSON() {
+    try {
+      const novoJSON = JSON.parse(document.getElementById("jsonInput").value);
+      fetch("https://seguidores-api.onrender.com/api/salvar-pacotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(novoJSON)
+      }).then(res => {
+        if (res.ok) {
+          alert("JSON salvo com sucesso!");
+        } else {
+          alert("Erro ao salvar JSON.");
+        }
+      });
+    } catch (e) {
+      alert("JSON inválido!");
+    }
+  }
+
+  function carregarPedidos() {
+    const planilhaID = "1rFA8UwVzr3JcRWpUOyavh7RDTmnZKDv1k3Ymlv70Ba8";
+    const aba = "Página1";
+    const url = `https://opensheet.vercel.app/${planilhaID}/${aba}`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(dados => {
+        let html = `<table><tr><th>Instagram</th><th>Telefone</th><th>Pacote</th><th>Data</th></tr>`;
+        dados.forEach(d => {
+          html += `<tr><td>${d.instagram}</td><td>${d.telefone}</td><td>${d.pacote}</td><td>${d.data}</td></tr>`;
+        });
+        html += "</table>";
+        document.getElementById("tabelaPedidos").innerHTML = html;
+      })
+      .catch(() => {
+        document.getElementById("tabelaPedidos").innerText = "Erro ao carregar pedidos.";
+      });
+  }
+</script>
+</body>
+</html>
