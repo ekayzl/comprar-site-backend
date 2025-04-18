@@ -23,12 +23,12 @@ app.post('/api/pagar', async (req, res) => {
   seg_1k: { title: "1.000 seguidores", unit_price: 0.99 },
   seg_2k: { title: "2.000 seguidores", unit_price: 1.99 },
   seg_5k: { title: "5.000 seguidores", unit_price: 4.99 },
-  curt_500: { title: "500 curtidas", unit_price: 0.99 },
-  curt_1k: { title: "1.000 curtidas", unit_price: 1.89 },
-  curt_3k: { title: "3.000 curtidas", unit_price: 3.99 },
-  view_1k: { title: "1.000 views", unit_price: 0.79 },
-  view_5k: { title: "5.000 views", unit_price: 2.49 },
-  view_10k: { title: "10.000 views", unit_price: 4.90 }
+  curt_500: { title: "500 curtidas", unit_price: 0.80 },
+  curt_1k: { title: "1.000 curtidas", unit_price: 1.60 },
+  curt_3k: { title: "3.000 curtidas", unit_price: 2.49 },
+  view_1k: { title: "1.000 views", unit_price: 0.36 },
+  view_5k: { title: "5.000 views", unit_price: 0.72 },
+  view_10k: { title: "10.000 views", unit_price: 1.08 }
 };
 
 
