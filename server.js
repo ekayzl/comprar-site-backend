@@ -21,7 +21,7 @@ app.post('/api/pagar', async (req, res) => {
   premium: { title: "2.000 seguidores + bônus", unit_price: 1.99 },
   premiumzao: { title: "2.000 seguidores + curtidas + views + bônus secreto", unit_price: 2.99 },
   seg_1k: { title: "1.000 seguidores", unit_price: 0.99 },
-  seg_2k: { title: "2.000 seguidores", unit_price: 1.99 },
+  seg_2k: { title: "1.500 seguidores", unit_price: 1.99 },
   seg_5k: { title: "2.000 seguidores", unit_price: 2.99 },
   curt_500: { title: "500 curtidas", unit_price: 0.80 },
   curt_1k: { title: "1.000 curtidas", unit_price: 1.60 },
