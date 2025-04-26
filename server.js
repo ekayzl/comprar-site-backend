@@ -57,7 +57,7 @@ app.post('/api/pagar-manual', async (req, res) => {
   }
 
   // Redirecionar para a tela de instruções de pagamento manual
-  res.json({ redirect: "https://efetuarpagamento.netlify.app" });
+  res.json({ redirect: `https://efetuarpagamento.netlify.app?valor=${valor}` });
 });
 
 const PORT = process.env.PORT || 3000;
