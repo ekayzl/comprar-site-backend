@@ -12,7 +12,7 @@ app.post('/api/pagar-manual', async (req, res) => {
   const { pacote, valor, instagram, telefone } = req.body;
 
   const pacotes = {
-    basico: { title: "1.000 seguidores reais", unit_price: 0.99 },
+    basico: { title: "1.000 seguidores reais", unit_price: 1.19 },
     premium: { title: "2.000 seguidores + bônus", unit_price: 1.99 },
     premiumzao: { title: "2.000 seguidores + curtidas + views + bônus secreto", unit_price: 2.99 },
     seg_1k: { title: "1.000 seguidores", unit_price: 0.99 },
