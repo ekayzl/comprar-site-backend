@@ -1,44 +1,76 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // Para envio ao Google Sheets
+const mercadopago = require('mercadopago');
+const fetch = require('node-fetch');
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-// Rota para pagamento manual
-app.post('/api/pagar-manual', async (req, res) => {
-  const { pacote, valor, instagram, telefone } = req.body;
+const mp = new mercadopago.MercadoPagoConfig({
+  accessToken: process.env.MERCADOPAGO_TOKEN
+});
+
+const preferenceClient = new mercadopago.Preference(mp);
+
+app.post('/api/pagar', async (req, res) => {
+  const { pacote, valor, instagram, telefone, upsell } = req.body;
 
   const pacotes = {
-    basico: { title: "1.000 seguidores reais", unit_price: 1.19 },
-    premium: { title: "2.000 seguidores + bônus", unit_price: 2.99 },
-    premiumzao: { title: "2.000 seguidores + curtidas + views + bônus secreto", unit_price: 3.99 },
-    seg_1k: { title: "1.000 seguidores", unit_price: 1.19 },
-    seg_2k: { title: "2.000 seguidores", unit_price: 1.99 },
-    seg_5k: { title: "5.000 seguidores", unit_price: 4.99 },
-    curt_500: { title: "500 curtidas", unit_price: 0.99 },
-    curt_1k: { title: "1.000 curtidas", unit_price: 1.89 },
-    curt_3k: { title: "3.000 curtidas", unit_price: 3.99 },
-    view_1k: { title: "1.000 views", unit_price: 0.79 },
-    view_5k: { title: "5.000 views", unit_price: 2.49 },
-    view_10k: { title: "10.000 views", unit_price: 4.90 }
+    // Seguidores
+    seg_1k:  { title: "400 Seguidores", unit_price: 1.99 },
+    seg_2k:  { title: "800 Seguidores", unit_price: 3.98 },
+    seg_5k:  { title: "1.200 Seguidores", unit_price: 5.97 },
+    seg_7k:  { title: "1.600 Seguidores", unit_price: 7.96 },
+    seg_10k: { title: "2.000 Seguidores", unit_price: 9.95 },
+    seg_15k: { title: "2.400 Seguidores", unit_price: 11.94 },
+  
+    // Curtidas
+    curt_500:  { title: "500 Curtidas", unit_price: 1.99 },
+    curt_1k:   { title: "1.000 Curtidas", unit_price: 3.98 },
+    curt_3k:   { title: "3.000 Curtidas", unit_price: 5.97 },
+    curt_5k:   { title: "5.000 Curtidas", unit_price: 7.95 },
+    curt_10k:  { title: "10.000 Curtidas", unit_price: 9.94 },
+    curt_15k:  { title: "15.000 Curtidas", unit_price: 11.93 },
+  
+    // Views
+    view_1k:   { title: "1.000 Views", unit_price: 1.29 },
+    view_5k:   { title: "5.000 Views", unit_price: 3.49 },
+    view_10k:  { title: "10.000 Views", unit_price: 4.98 },
+    view_15k:  { title: "15.000 Views", unit_price: 6.47 },
+    view_20k:  { title: "20.000 Views", unit_price: 7.96 },
+    view_25k:  { title: "25.000 Views", unit_price: 9.45 },
+  
+    // Ofertas especiais e pop-ups
+    ofertaespecial399: { title: "Pacote especial + bônus oculto", unit_price: 8.97 },
+    ofertaespecial299: { title: "Pacote especial reduzido + bônus", unit_price: 7.99 },
+  
+    // Pacote personalizado (valor dinâmico)
+    personalizado: null,
   };
+  
+  
 
   let item;
+
   if (pacote === "personalizado" && valor) {
     item = {
       title: "Pacote personalizado com bônus",
-      unit_price: Number(valor),
+      unit_price: Number(valor)
     };
   } else if (pacotes[pacote]) {
-    item = pacotes[pacote];
+    item = { ...pacotes[pacote] };
+
+    // Lógica de upsell (adiciona +R$1.82 no valor)
+    if (upsell === 'true') {
+      item.unit_price = parseFloat((item.unit_price + 1.82).toFixed(2));
+      item.title += " + bônus adicional";
+    }
   } else {
     return res.status(400).json({ error: "Pacote inválido" });
   }
 
-  // Enviar dados para o Google Sheets
+  // Envia ao Google Sheets
   try {
     await fetch("https://script.google.com/macros/s/AKfycbz6wqMu-g40bs5bst9ekh_BuX91GIaoXpcRPvZOkdGPRET-J1-R86ab8eCPu-3s9NFcow/exec", {
       method: "POST",
@@ -48,16 +80,36 @@ app.post('/api/pagar-manual', async (req, res) => {
         telefone: telefone || "não informado",
         pacote,
         valor: item.unit_price,
-        data: new Date().toLocaleString("pt-BR"),
-        metodo: "manual"
+        upsell: upsell === 'true' ? "Sim" : "Não",
+        data: new Date().toLocaleString("pt-BR")
       })
     });
   } catch (err) {
     console.error("Erro ao enviar dados ao Google Sheets:", err.message);
   }
 
-  // Redirecionar para a tela de instruções de pagamento manual
-  res.json({ redirect: `https://efetuarpagamento.netlify.app?valor=${valor}` });
+  const body = {
+    items: [{
+      title: item.title,
+      quantity: 1,
+      currency_id: "BRL",
+      unit_price: item.unit_price
+    }],
+    back_urls: {
+      success: "https://mensagemdeerro.netlify.app",
+      failure: "https://mensagemdeerro.netlify.app/erro",
+      pending: "https://mensagemdeerro.netlify.app/pendente"
+    },
+    auto_return: "approved"
+  };
+
+  try {
+    const preference = await preferenceClient.create({ body });
+    res.json({ link: preference.init_point });
+  } catch (error) {
+    console.error("Erro ao criar preferência:", error.message);
+    res.status(500).json({ error: "Erro ao gerar link de pagamento" });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
