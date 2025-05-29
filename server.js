@@ -8,10 +8,10 @@ app.use(express.json());
 
 const PORT = 3000;
 
-// API KEY da Pushinpay
-const API_KEY = 'SUA_API_KEY';
+// 🔑 API Key (Token) da Pushinpay
+const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
-// Armazena os pagamentos confirmados temporariamente
+// 🗂️ Armazena os pagamentos confirmados temporariamente
 let pagamentosConfirmados = {};
 
 // 🔥 Rota para gerar PIX
@@ -27,12 +27,12 @@ app.post('/gerar-pix', async (req, res) => {
       'https://api.pushinpay.com.br/api/pix/cashIn',
       {
         value: Math.round(valor * 100), // Enviar em centavos
-        webhook_url: 'https://comprarseguidores.netlify.app/webhook-pix', // 🔗 Troque pelo seu webhook real
+        webhook_url: 'https://comprarseguidores.netlify.app/webhook-pix', // 🔗 Seu webhook (troque se quiser)
         split_rules: []
       },
       {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          Authorization: `Token ${API_KEY}`, // ✅ CORRETO AQUI
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
@@ -44,13 +44,13 @@ app.post('/gerar-pix', async (req, res) => {
     return res.json({ qr_code, qr_code_base64, txid });
   } catch (error) {
     console.error('Erro na geração do Pix:', error.response?.data || error.message);
-    return res.status(500).json({ erro: 'Erro na geração do Pix' });
+    return res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
   }
 });
 
 // 🔔 Webhook para receber notificação de pagamento
 app.post('/webhook-pix', (req, res) => {
-  const { txid, status } = req.body; // Verifique se esses são os campos certos na documentação da Pushinpay
+  const { txid, status } = req.body;
 
   console.log('Webhook recebido:', req.body);
 
