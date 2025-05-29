@@ -83,6 +83,13 @@ app.post('/webhook-pix', (req, res) => {
   }
 });
 
+// 🚦 Rota para consulta do status do pagamento
+app.get('/status-pagamento/:id', (req, res) => {
+  const id = req.params.id;
+  const confirmado = pagamentosConfirmados[id] === true;
+  res.json({ confirmado });
+});
+
 // Servidor ouvindo na porta
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
