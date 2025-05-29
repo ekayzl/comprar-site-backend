@@ -9,11 +9,20 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
 
+// Log para saber que o código está rodando
+console.log('🚀 Iniciando servidor...');
+
 // 🔑 API Key da Pushinpay
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
 // 🗂️ Banco temporário
 let pagamentosConfirmados = {};
+
+// Middleware de log simples para requisições
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
 // 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
@@ -49,22 +58,32 @@ app.post('/gerar-pix', async (req, res) => {
   }
 });
 
-// 🔔 Webhook Pix (corrigido)
+// 🔔 Webhook Pix (com try/catch para evitar crash)
 app.post('/webhook-pix', (req, res) => {
-  console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
+  try {
+    console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
 
-  const data = req.body?.data || req.body;
-  const { id, status } = data;
+    const data = req.body?.data || req.body;
+    const { id, status } = data;
 
-  if (!id || !status) {
-    console.log('❌ Dados inválidos no webhook:', req.body);
-    return res.sendStatus(400);
+    if (!id || !status) {
+      console.log('❌ Dados inválidos no webhook:', req.body);
+      return res.sendStatus(400);
+    }
+
+    if (status === 'paid' || status === 'concluido') {
+      pagamentosConfirmados[id] = true;
+      console.log(`✅ Pagamento confirmado: ${id}`);
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Erro no webhook-pix:', error);
+    res.sendStatus(500);
   }
+});
 
-  if (status === 'paid' || status === 'concluido') {
-    pagamentosConfirmados[id] = true;
-    console.log(`✅ Pagamento confirmado: ${id}`);
-  }
-
-  res.sendStatus(200);
+// Servidor ouvindo na porta
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
