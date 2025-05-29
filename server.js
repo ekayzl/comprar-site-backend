@@ -54,29 +54,17 @@ app.post('/webhook-pix', (req, res) => {
   console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
 
   const data = req.body?.data || req.body;
-  const { txid, status } = data;
+  const { id, status } = data;
 
-  if (!txid || !status) {
+  if (!id || !status) {
     console.log('❌ Dados inválidos no webhook:', req.body);
     return res.sendStatus(400);
   }
 
   if (status === 'paid' || status === 'concluido') {
-    pagamentosConfirmados[txid] = true;
-    console.log(`✅ Pagamento confirmado: ${txid}`);
+    pagamentosConfirmados[id] = true;
+    console.log(`✅ Pagamento confirmado: ${id}`);
   }
 
   res.sendStatus(200);
-});
-
-// 🔍 Verificar pagamento
-app.get('/verificar-pagamento/:txid', (req, res) => {
-  const { txid } = req.params;
-  const pago = pagamentosConfirmados[txid] || false;
-  res.json({ txid, pago });
-});
-
-// 🚀 Start
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
 });
