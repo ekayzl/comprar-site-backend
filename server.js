@@ -32,7 +32,7 @@ app.post('/gerar-pix', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Token ${API_KEY}`,
+          Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
