@@ -5,13 +5,14 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
 
-// 🔑 API Key (Token) da Pushinpay
+// 🔑 API Key da Pushinpay
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
-// 🗂️ Armazena os pagamentos confirmados temporariamente (RAM)
+// 🗂️ Banco temporário
 let pagamentosConfirmados = {};
 
 // 🔥 Gerar PIX
@@ -26,8 +27,8 @@ app.post('/gerar-pix', async (req, res) => {
     const response = await axios.post(
       'https://api.pushinpay.com.br/api/pix/cashIn',
       {
-        value: Math.round(valor * 100), // Enviar em centavos
-        webhook_url: 'https://seguidores-api.onrender.com/webhook-pix', // ✅ URL do seu backend na Render
+        value: Math.round(valor * 100),
+        webhook_url: 'https://seguidores-api.onrender.com/webhook-pix',
         split_rules: []
       },
       {
@@ -48,11 +49,17 @@ app.post('/gerar-pix', async (req, res) => {
   }
 });
 
-// 🔔 Webhook do Pix
+// 🔔 Webhook Pix (corrigido)
 app.post('/webhook-pix', (req, res) => {
-  const { txid, status } = req.body;
+  console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
 
-  console.log('Webhook recebido:', req.body);
+  const data = req.body?.data || req.body;
+  const { txid, status } = data;
+
+  if (!txid || !status) {
+    console.log('❌ Dados inválidos no webhook:', req.body);
+    return res.sendStatus(400);
+  }
 
   if (status === 'paid' || status === 'concluido') {
     pagamentosConfirmados[txid] = true;
@@ -65,9 +72,7 @@ app.post('/webhook-pix', (req, res) => {
 // 🔍 Verificar pagamento
 app.get('/verificar-pagamento/:txid', (req, res) => {
   const { txid } = req.params;
-
   const pago = pagamentosConfirmados[txid] || false;
-
   res.json({ txid, pago });
 });
 
