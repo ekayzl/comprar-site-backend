@@ -6,20 +6,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // 🔑 API Key (Token) da Pushinpay
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
-// 🗂️ Armazena os pagamentos confirmados temporariamente
+// 🗂️ Armazena os pagamentos confirmados temporariamente (RAM)
 let pagamentosConfirmados = {};
 
-// 🔥 Rota para gerar PIX
+// 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
   const { valor } = req.body;
 
   if (!valor || valor < 0.5) {
-    return res.status(400).json({ erro: 'Valor é obrigatório e mínimo 0,50.' });
+    return res.status(400).json({ erro: 'Valor mínimo é R$0,50' });
   }
 
   try {
@@ -27,12 +27,12 @@ app.post('/gerar-pix', async (req, res) => {
       'https://api.pushinpay.com.br/api/pix/cashIn',
       {
         value: Math.round(valor * 100), // Enviar em centavos
-        webhook_url: 'https://comprarseguidores.netlify.app/webhook-pix', // 🔗 Seu webhook (troque se quiser)
+        webhook_url: 'https://seguidores-api.onrender.com/webhook-pix', // ✅ URL do seu backend na Render
         split_rules: []
       },
       {
         headers: {
-          Authorization: `Token ${API_KEY}`, // ✅ CORRETO AQUI
+          Authorization: `Token ${API_KEY}`,
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
@@ -41,14 +41,14 @@ app.post('/gerar-pix', async (req, res) => {
 
     const { qr_code, qr_code_base64, txid } = response.data;
 
-    return res.json({ qr_code, qr_code_base64, txid });
+    res.json({ qr_code, qr_code_base64, txid });
   } catch (error) {
     console.error('Erro na geração do Pix:', error.response?.data || error.message);
-    return res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
+    res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
   }
 });
 
-// 🔔 Webhook para receber notificação de pagamento
+// 🔔 Webhook do Pix
 app.post('/webhook-pix', (req, res) => {
   const { txid, status } = req.body;
 
@@ -56,13 +56,13 @@ app.post('/webhook-pix', (req, res) => {
 
   if (status === 'paid' || status === 'concluido') {
     pagamentosConfirmados[txid] = true;
-    console.log(`Pagamento confirmado para TXID: ${txid}`);
+    console.log(`✅ Pagamento confirmado: ${txid}`);
   }
 
   res.sendStatus(200);
 });
 
-// 🔍 Rota para verificar status do pagamento
+// 🔍 Verificar pagamento
 app.get('/verificar-pagamento/:txid', (req, res) => {
   const { txid } = req.params;
 
@@ -71,7 +71,7 @@ app.get('/verificar-pagamento/:txid', (req, res) => {
   res.json({ txid, pago });
 });
 
-// 🚀 Inicia o servidor
+// 🚀 Start
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
