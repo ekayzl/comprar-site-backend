@@ -26,7 +26,9 @@ app.use((req, res, next) => {
 
 // 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
-  const { valor } = req.body;
+  const { qr_code, qr_code_base64, txid, id } = response.data;
+res.json({ qr_code, qr_code_base64, txid, id });
+
 
   if (!valor || valor < 0.5) {
     return res.status(400).json({ erro: 'Valor mínimo é R$0,50' });
