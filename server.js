@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // 🔑 API Keys
 const PUSHINPAY_API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
-const SMM_API_KEY = 'SUA_API_KEY_DO_PAINEL_SMM'; // 🔁 troque por sua chave real
+const SMM_API_KEY = '021df11aacf4409f789d0b4be4b4477a'; // 🔁 troque por sua chave real
 
 // 🧠 Bancos temporários em memória
 let pagamentosConfirmados = {};
