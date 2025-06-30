@@ -1,4 +1,4 @@
-const express = require('express');
+mconst express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // 🔑 API Keys
 const PUSHINPAY_API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
-const SMM_API_KEY = 'SUA_API_KEY_DO_PAINEL_SMM'; // 🔁 troque por sua chave real
+const SMM_API_KEY = '021df11aacf4409f789d0b4be4b4477a'; // 🔁 troque por sua chave real
 
 // 🧠 Bancos temporários em memória
 let pagamentosConfirmados = {};
@@ -22,9 +22,9 @@ console.log('🚀 Iniciando servidor...');
 
 // 📦 Defina seus pacotes aqui com ID do serviço e quantidade
 const pacotes = {
-  'Pacote 1': { smmId: 1001, quantidade: 100 },
-  'Pacote 2': { smmId: 1002, quantidade: 250 },
-  'Pacote 3': { smmId: 1003, quantidade: 500 },
+  'Pacote 1': { smmId: 523, quantidade: 100 },
+  'Pacote 2': { smmId: 523, quantidade: 250 },
+  'Pacote 3': { smmId: 523, quantidade: 500 },
   // adicione quantos quiser
 };
 
