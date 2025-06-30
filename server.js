@@ -9,39 +9,22 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
 
-// 🔑 API Keys
-const PUSHINPAY_API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
-const SMM_API_KEY = '021df11aacf4409f789d0b4be4b4477a'; // 🔁 troque por sua chave real
-
-// 🧠 Bancos temporários em memória
-let pagamentosConfirmados = {};
-let pedidosPendentes = {};
-
-// Log
+// Log para saber que o código está rodando
 console.log('🚀 Iniciando servidor...');
 
-// 📦 Defina seus pacotes aqui com ID do serviço e quantidade
-const pacotes = {
-  'Pacote 1': { smmId: 1001, quantidade: 100 },
-  'Pacote 2': { smmId: 1002, quantidade: 250 },
-  'Pacote 3': { smmId: 1003, quantidade: 500 },
-  // adicione quantos quiser
-};
+// 🔑 API Key da Pushinpay
+const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
-// 🧾 Criar pedido (antes de gerar Pix)
-app.post('/criar-pedido', (req, res) => {
-  const { txid, pacote, username } = req.body;
+// 🗂️ Banco temporário
+let pagamentosConfirmados = {};
 
-  if (!txid || !pacote || !username) {
-    return res.status(400).json({ erro: 'Dados incompletos' });
-  }
-
-  pedidosPendentes[txid] = { pacote, username };
-  console.log('📦 Pedido salvo:', txid, pedidosPendentes[txid]);
-  res.sendStatus(200);
+// Middleware de log simples para requisições
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
 });
 
-// 💸 Gerar PIX
+// 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
   const { valor } = req.body;
 
@@ -55,11 +38,11 @@ app.post('/gerar-pix', async (req, res) => {
       {
         value: Math.round(valor * 100),
         webhook_url: 'https://seguidores-api.onrender.com/webhook-pix',
-        split_rules: [],
+        split_rules: []
       },
       {
         headers: {
-          Authorization: `Bearer ${PUSHINPAY_API_KEY}`,
+          Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
@@ -71,12 +54,12 @@ app.post('/gerar-pix', async (req, res) => {
     res.json({ qr_code, qr_code_base64, txid });
   } catch (error) {
     console.error('Erro na geração do Pix:', error.response?.data || error.message);
-    res.status(500).json({ erro: 'Erro ao gerar Pix' });
+    res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
   }
 });
 
-// 🔔 Webhook do Pushinpay
-app.post('/webhook-pix', async (req, res) => {
+// 🔔 Webhook Pix (com try/catch para evitar crash)
+app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
 
@@ -91,36 +74,6 @@ app.post('/webhook-pix', async (req, res) => {
     if (status === 'paid' || status === 'concluido') {
       pagamentosConfirmados[id] = true;
       console.log(`✅ Pagamento confirmado: ${id}`);
-
-      const pedido = pedidosPendentes[id];
-
-      if (!pedido) {
-        console.log('⚠️ Nenhum pedido salvo para esse pagamento');
-        return res.sendStatus(200);
-      }
-
-      const { pacote, username } = pedido;
-      const pacoteInfo = pacotes[pacote];
-
-      if (!pacoteInfo) {
-        console.log(`❌ Pacote inválido: ${pacote}`);
-        return res.sendStatus(200);
-      }
-
-      // Enviar para painel SMM
-      try {
-        const resposta = await axios.post('https://measmm.com/api/v2', {
-          key: SMM_API_KEY,
-          action: 'add',
-          service: pacoteInfo.smmId,
-          link: username,
-          quantity: pacoteInfo.quantidade,
-        });
-
-        console.log('📤 Pedido enviado ao Painel SMM:', resposta.data);
-      } catch (erroEnvio) {
-        console.error('❌ Erro ao enviar ao Painel SMM:', erroEnvio.response?.data || erroEnvio.message);
-      }
     }
 
     res.sendStatus(200);
@@ -130,14 +83,14 @@ app.post('/webhook-pix', async (req, res) => {
   }
 });
 
-// 🔎 Consultar status do pagamento
+// 🚦 Rota para consulta do status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
   const id = req.params.id;
   const confirmado = pagamentosConfirmados[id] === true;
   res.json({ confirmado });
 });
 
-// 🟢 Inicia o servidor
+// Servidor ouvindo na porta
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
