@@ -123,3 +123,19 @@ app.get('/status-pagamento/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+app.post('/registrar-pedido', (req, res) => {
+  const pedido = req.body;
+
+  if (!pedido || !pedido.pagamentoId) {
+    return res.status(400).json({ erro: 'Dados inválidos' });
+  }
+
+  pedidos.push({
+    ...pedido,
+    data: new Date().toISOString()
+  });
+
+  salvarPedidos();
+  res.sendStatus(200);
+});
