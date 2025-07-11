@@ -49,9 +49,10 @@ app.post('/gerar-pix', async (req, res) => {
       }
     );
 
-    const { qr_code, qr_code_base64, txid } = response.data;
+    const { qr_code, qr_code_base64, id } = response.data;
 
-    res.json({ qr_code, qr_code_base64, txid });
+  res.json({ qr_code, qr_code_base64, id }); // agora o front vai funcionar!
+
   } catch (error) {
     console.error('Erro na geração do Pix:', error.response?.data || error.message);
     res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
