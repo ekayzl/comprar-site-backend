@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const fs = require('fs');
+
 const app = express();
 
 app.use(cors());
@@ -15,8 +17,7 @@ console.log('🚀 Iniciando servidor...');
 // 🔑 API Key da Pushinpay
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
-// 🗂️ Banco temporário
-const fs = require('fs');
+// 🗂️ Banco temporário em arquivo
 const PAGAMENTOS_FILE = './pagamentos.json';
 
 let pagamentosConfirmados = {};
@@ -29,19 +30,6 @@ try {
 function salvarPagamentos() {
   fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
 }
-
-    if (status === 'paid' || status === 'concluido') {
-      pagamentosConfirmados[id] = true;
-      salvarPagamentos();
-      console.log(`✅ Pagamento confirmado: ${id}`);
-    }
-    res.sendStatus(200);
-  } catch (error) {
-    console.error('Erro no webhook-pix:', error);
-    res.sendStatus(500);
-  }
-});
-
 
 // Middleware de log simples para requisições
 app.use((req, res, next) => {
@@ -76,15 +64,14 @@ app.post('/gerar-pix', async (req, res) => {
 
     const { qr_code, qr_code_base64, id } = response.data;
 
-  res.json({ qr_code, qr_code_base64, id }); // agora o front vai funcionar!
-
+    res.json({ qr_code, qr_code_base64, id });
   } catch (error) {
     console.error('Erro na geração do Pix:', error.response?.data || error.message);
     res.status(500).json({ erro: error.response?.data || 'Erro na geração do Pix' });
   }
 });
 
-// 🔔 Webhook Pix (com try/catch para evitar crash)
+// 🔔 Webhook Pix (único, com persistência)
 app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
@@ -100,7 +87,7 @@ app.post('/webhook-pix', (req, res) => {
 
     if (status === 'paid' || status === 'concluido') {
       pagamentosConfirmados[id] = true;
-      salvarPagamentos(); // grava no arquivo
+      salvarPagamentos();
       console.log(`✅ Pagamento confirmado: ${id}`);
     }
 
@@ -110,7 +97,6 @@ app.post('/webhook-pix', (req, res) => {
     res.sendStatus(500);
   }
 });
-
 
 // 🚦 Rota para consulta do status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
