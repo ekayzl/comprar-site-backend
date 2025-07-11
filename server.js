@@ -1,3 +1,17 @@
+const PEDIDOS_FILE = './pedidos.json';
+let pedidos = [];
+
+try {
+  pedidos = JSON.parse(fs.readFileSync(PEDIDOS_FILE, 'utf-8'));
+} catch {
+  pedidos = [];
+}
+
+function salvarPedidos() {
+  fs.writeFileSync(PEDIDOS_FILE, JSON.stringify(pedidos, null, 2));
+}
+
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
