@@ -100,7 +100,7 @@ app.post('/webhook-pix', (req, res) => {
 
 // 🚦 Rota para consulta do status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
-  const id = req.params.id;
+  const id = req.params.id.toUpperCase(); // ← aqui está a correção!
   const confirmado = pagamentosConfirmados[id] === true;
   res.json({ confirmado });
 });
