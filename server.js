@@ -1,17 +1,3 @@
-const PEDIDOS_FILE = './pedidos.json';
-let pedidos = [];
-
-try {
-  pedidos = JSON.parse(fs.readFileSync(PEDIDOS_FILE, 'utf-8'));
-} catch {
-  pedidos = [];
-}
-
-function salvarPedidos() {
-  fs.writeFileSync(PEDIDOS_FILE, JSON.stringify(pedidos, null, 2));
-}
-
-
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -122,20 +108,4 @@ app.get('/status-pagamento/:id', (req, res) => {
 // Servidor ouvindo na porta
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
-});
-
-app.post('/registrar-pedido', (req, res) => {
-  const pedido = req.body;
-
-  if (!pedido || !pedido.pagamentoId) {
-    return res.status(400).json({ erro: 'Dados inválidos' });
-  }
-
-  pedidos.push({
-    ...pedido,
-    data: new Date().toISOString()
-  });
-
-  salvarPedidos();
-  res.sendStatus(200);
 });
