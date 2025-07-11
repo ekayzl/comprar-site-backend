@@ -16,7 +16,37 @@ console.log('🚀 Iniciando servidor...');
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
 // 🗂️ Banco temporário
+const fs = require('fs');
+const PAGAMENTOS_FILE = './pagamentos.json';
+
 let pagamentosConfirmados = {};
+try {
+  pagamentosConfirmados = JSON.parse(fs.readFileSync(PAGAMENTOS_FILE, 'utf-8'));
+} catch {
+  pagamentosConfirmados = {};
+}
+
+function salvarPagamentos() {
+  fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
+}
+
+app.post('/webhook-pix', (req, res) => {
+  try {
+    const data = req.body?.data || req.body;
+    const { id, status } = data;
+
+    if (status === 'paid' || status === 'concluido') {
+      pagamentosConfirmados[id] = true;
+      salvarPagamentos();
+      console.log(`✅ Pagamento confirmado: ${id}`);
+    }
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Erro no webhook-pix:', error);
+    res.sendStatus(500);
+  }
+});
+
 
 // Middleware de log simples para requisições
 app.use((req, res, next) => {
@@ -63,6 +93,8 @@ app.post('/gerar-pix', async (req, res) => {
 app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
+    const data = req.body?.data || req.body;
+    console.log('ID recebido no webhook:', data.id);
 
     const data = req.body?.data || req.body;
     const { id, status } = data;
