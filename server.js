@@ -30,11 +30,6 @@ function salvarPagamentos() {
   fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
 }
 
-app.post('/webhook-pix', (req, res) => {
-  try {
-    const data = req.body?.data || req.body;
-    const { id, status } = data;
-
     if (status === 'paid' || status === 'concluido') {
       pagamentosConfirmados[id] = true;
       salvarPagamentos();
@@ -96,7 +91,6 @@ app.post('/webhook-pix', (req, res) => {
     const data = req.body?.data || req.body;
     console.log('ID recebido no webhook:', data.id);
 
-    const data = req.body?.data || req.body;
     const { id, status } = data;
 
     if (!id || !status) {
@@ -106,6 +100,7 @@ app.post('/webhook-pix', (req, res) => {
 
     if (status === 'paid' || status === 'concluido') {
       pagamentosConfirmados[id] = true;
+      salvarPagamentos(); // grava no arquivo
       console.log(`✅ Pagamento confirmado: ${id}`);
     }
 
@@ -115,6 +110,7 @@ app.post('/webhook-pix', (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 // 🚦 Rota para consulta do status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
