@@ -109,3 +109,45 @@ app.get('/status-pagamento/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+
+
+
+
+
+
+
+// No seu backend (Node.js/Express)
+app.post('/substituir-pacote', async (req, res) => {
+  try {
+    const { serviceId, link, quantity, pagamentoId } = req.body;
+    
+    // Dados para a API SMM
+    const reqData = {
+      key: 'b13515f1c7712d05ef155dd9a2aa4b2b',
+      action: 'add',
+      service: serviceId,
+      link: link,
+      quantity: quantity
+    };
+    
+    // Chama a API SMM
+    const response = await fetch('https://measmm.com/api/v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(reqData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.order) {
+      res.json({ success: true, orderId: result.order });
+    } else {
+      res.json({ success: false, message: 'Erro na API SMM' });
+    }
+    
+  } catch (error) {
+    console.error('Erro:', error);
+    res.json({ success: false, message: 'Erro interno' });
+  }
+});
