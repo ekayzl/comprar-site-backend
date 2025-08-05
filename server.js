@@ -124,7 +124,7 @@ app.post('/substituir-pacote', async (req, res) => {
     
     // Dados para a API SMM
     const reqData = {
-      key: 'b13515f1c7712d05ef155dd9a2aa4b2b',
+      key: '55ab6792e23900bfeb46c48b33527349',
       action: 'add',
       service: serviceId,
       link: link,
@@ -132,7 +132,7 @@ app.post('/substituir-pacote', async (req, res) => {
     };
     
     // Chama a API SMM
-    const response = await fetch('https://measmm.com/api/v2', {
+    const response = await fetch('https://machinesmm.com/api/v2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(reqData)
