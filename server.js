@@ -6,6 +6,7 @@ const path = require('path');
 
 const app = express();
 
+// MIDDLEWARES BÁSICOS PRIMEIRO
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -37,12 +38,9 @@ function salvarPagamentos() {
   }
 }
 
-// Middleware de log
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
+// ========== ROTAS DA API (ANTES DE TUDO) ==========
 
+// IMPORTANTE: Definir rotas da API ANTES de qualquer middleware
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
@@ -257,7 +255,13 @@ app.post('/substituir-pacote', async (req, res) => {
   }
 });
 
-// Servir arquivos estáticos
+// ========== MIDDLEWARE DE LOG (DEPOIS DAS ROTAS) ==========
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+// ========== SERVIR ARQUIVOS ESTÁTICOS (NO FINAL) ==========
 app.use(express.static('.'));
 
 // Servidor ouvindo na porta
