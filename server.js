@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 
@@ -18,27 +19,98 @@ console.log('🚀 Iniciando servidor...');
 const API_KEY = '31153|wnS0geT96c0NcMJHQe4gHcXutRBcXiFqmYzFUFv634c837c5';
 
 // 🗂️ Banco temporário em arquivo
-const PAGAMENTOS_FILE = './pagamentos.json';
+const PAGAMENTOS_FILE = path.join(__dirname, 'pagamentos.json');
 
 let pagamentosConfirmados = {};
 try {
-  pagamentosConfirmados = JSON.parse(fs.readFileSync(PAGAMENTOS_FILE, 'utf-8'));
-} catch {
+  if (fs.existsSync(PAGAMENTOS_FILE)) {
+    pagamentosConfirmados = JSON.parse(fs.readFileSync(PAGAMENTOS_FILE, 'utf-8'));
+  }
+} catch (error) {
+  console.log('Arquivo de pagamentos não encontrado, criando novo...');
   pagamentosConfirmados = {};
 }
 
 function salvarPagamentos() {
-  fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
+  try {
+    fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados, null, 2));
+    console.log('Pagamentos salvos com sucesso');
+  } catch (error) {
+    console.error('Erro ao salvar pagamentos:', error);
+  }
 }
 
 // Middleware de log simples para requisições
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-// Servir arquivos estáticos (para acessar o admin.html)
-app.use(express.static('.'));
+// IMPORTANTE: Colocar as rotas da API ANTES do middleware de arquivos estáticos
+// 📊 ROTA: Dados para admin
+app.get('/admin/dados', (req, res) => {
+  try {
+    console.log('📊 Admin dados solicitado');
+    res.setHeader('Content-Type', 'application/json');
+    res.json(pagamentosConfirmados || {});
+  } catch (error) {
+    console.error('Erro ao buscar dados admin:', error);
+    res.status(500).json({ erro: 'Erro interno do servidor' });
+  }
+});
+
+// 📈 ROTA: Estatísticas para admin
+app.get('/admin/stats', (req, res) => {
+  try {
+    console.log('📈 Admin stats solicitado');
+    const dados = Object.values(pagamentosConfirmados);
+    const agora = new Date();
+    const hoje = agora.toDateString();
+    
+    // Filtros por data
+    const pedidosHoje = dados.filter(p => {
+      if (!p.timestampGerado) return false;
+      return new Date(p.timestampGerado).toDateString() === hoje;
+    });
+    
+    const pagosHoje = dados.filter(p => {
+      if (!p.timestampPago) return false;
+      return new Date(p.timestampPago).toDateString() === hoje;
+    });
+    
+    // Cálculos
+    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    
+    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
+    
+    const stats = {
+      // Hoje
+      pixGeradosHoje: pedidosHoje.length,
+      pixPagosHoje: pagosHoje.length,
+      faturamentoHoje: faturamentoHoje.toFixed(2),
+      conversaoHoje: conversaoHoje + '%',
+      
+      // Total
+      totalPedidos: dados.length,
+      totalPagos: dados.filter(p => p.status === 'pago').length,
+      faturamentoTotal: faturamentoTotal.toFixed(2),
+      
+      // Por pacote hoje
+      pacotesHoje: pedidosHoje.reduce((acc, p) => {
+        const pacote = p.pacote || 'Sem pacote';
+        acc[pacote] = (acc[pacote] || 0) + 1;
+        return acc;
+      }, {})
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.json(stats);
+  } catch (error) {
+    console.error('Erro nas stats:', error);
+    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
+  }
+});
 
 // 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
@@ -66,6 +138,7 @@ app.post('/gerar-pix', async (req, res) => {
     );
 
     const { qr_code, qr_code_base64, id } = response.data;
+    console.log(`✅ PIX gerado com sucesso: ${id}`);
 
     res.json({ qr_code, qr_code_base64, id });
   } catch (error) {
@@ -74,10 +147,11 @@ app.post('/gerar-pix', async (req, res) => {
   }
 });
 
-// 💾 NOVA ROTA: Salvar dados do pedido
+// 💾 Salvar dados do pedido
 app.post('/salvar-pedido', (req, res) => {
   try {
     const { id, pacote, username, valor, serviceId, quantity } = req.body;
+    console.log(`💾 Salvando pedido: ${id} - ${username} - ${pacote}`);
     
     if (!pagamentosConfirmados[id]) {
       pagamentosConfirmados[id] = {};
@@ -103,12 +177,11 @@ app.post('/salvar-pedido', (req, res) => {
   }
 });
 
-// 🔔 Webhook Pix (atualizado para salvar mais dados)
+// 🔔 Webhook Pix
 app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
     const data = req.body?.data || req.body;
-    console.log('ID recebido no webhook:', data.id);
 
     const { id, status } = data;
 
@@ -118,7 +191,6 @@ app.post('/webhook-pix', (req, res) => {
     }
 
     if (status === 'paid' || status === 'concluido') {
-      // ✅ MUDANÇA AQUI: salvar objeto completo em vez de só true
       if (!pagamentosConfirmados[id]) {
         pagamentosConfirmados[id] = {};
       }
@@ -136,77 +208,20 @@ app.post('/webhook-pix', (req, res) => {
   }
 });
 
-// 🚦 Rota para consulta do status do pagamento (atualizada)
+// 🚦 Status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
-  const id = req.params.id.toUpperCase();
+  const id = req.params.id;
   const pedido = pagamentosConfirmados[id];
   const confirmado = pedido?.status === 'pago';
+  console.log(`🔍 Verificando status: ${id} - ${confirmado ? 'PAGO' : 'PENDENTE'}`);
   res.json({ confirmado });
 });
 
-// 📊 NOVA ROTA: Dados para admin
-app.get('/admin/dados', (req, res) => {
-  res.json(pagamentosConfirmados);
-});
-
-// 📈 NOVA ROTA: Estatísticas para admin
-app.get('/admin/stats', (req, res) => {
-  try {
-    const dados = Object.values(pagamentosConfirmados);
-    const agora = new Date();
-    const hoje = agora.toDateString();
-    
-    // Filtros por data
-    const pedidosHoje = dados.filter(p => {
-      if (!p.timestampGerado) return false;
-      return new Date(p.timestampGerado).toDateString() === hoje;
-    });
-    
-    const pagosHoje = dados.filter(p => {
-      if (!p.timestampPago) return false;
-      return new Date(p.timestampPago).toDateString() === hoje;
-    });
-    
-    // Cálculos
-    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    
-    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
-    
-    res.json({
-      // Hoje
-      pixGeradosHoje: pedidosHoje.length,
-      pixPagosHoje: pagosHoje.length,
-      faturamentoHoje: faturamentoHoje.toFixed(2),
-      conversaoHoje: conversaoHoje + '%',
-      
-      // Total
-      totalPedidos: dados.length,
-      totalPagos: dados.filter(p => p.status === 'pago').length,
-      faturamentoTotal: faturamentoTotal.toFixed(2),
-      
-      // Por pacote hoje
-      pacotesHoje: pedidosHoje.reduce((acc, p) => {
-        const pacote = p.pacote || 'Sem pacote';
-        acc[pacote] = (acc[pacote] || 0) + 1;
-        return acc;
-      }, {})
-    });
-  } catch (error) {
-    console.error('Erro nas stats:', error);
-    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
-  }
-});
-
-// Servidor ouvindo na porta
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
-
-// No seu backend (Node.js/Express)
+// 📦 Processar pedido SMM
 app.post('/substituir-pacote', async (req, res) => {
   try {
     const { serviceId, link, quantity, pagamentoId } = req.body;
+    console.log(`📦 Processando pedido: ${pagamentoId} - Service: ${serviceId} - Qty: ${quantity}`);
     
     // Atualizar status do pedido
     if (pagamentosConfirmados[pagamentoId]) {
@@ -224,6 +239,8 @@ app.post('/substituir-pacote', async (req, res) => {
       quantity: quantity
     };
     
+    console.log('📤 Enviando para API SMM:', reqData);
+    
     // Chama a API SMM
     const response = await fetch('https://machinesmm.com/api/v2', {
       method: 'POST',
@@ -232,6 +249,7 @@ app.post('/substituir-pacote', async (req, res) => {
     });
     
     const result = await response.json();
+    console.log('📥 Resposta da API SMM:', result);
     
     if (result.order) {
       // Atualizar com sucesso
@@ -240,13 +258,64 @@ app.post('/substituir-pacote', async (req, res) => {
         pagamentosConfirmados[pagamentoId].orderId = result.order;
         salvarPagamentos();
       }
+      console.log(`✅ Pedido processado com sucesso: Order ID ${result.order}`);
       res.json({ success: true, orderId: result.order });
     } else {
-      res.json({ success: false, message: 'Erro na API SMM' });
+      console.log('❌ Erro na resposta da API SMM:', result);
+      res.json({ success: false, message: 'Erro na API SMM', details: result });
     }
     
   } catch (error) {
-    console.error('Erro:', error);
-    res.json({ success: false, message: 'Erro interno' });
+    console.error('❌ Erro ao processar pedido:', error);
+    res.json({ success: false, message: 'Erro interno', error: error.message });
   }
+});
+
+// Servir arquivos estáticos (COLOCAR DEPOIS das rotas da API)
+app.use(express.static('.'));
+
+// Rota catch-all para SPA (apenas para rotas não encontradas)
+app.get('*', (req, res) => {
+  // Se for uma rota da API que não existe, retornar 404 JSON
+  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
+    return res.status(404).json({ erro: 'Rota não encontrada' });
+  }
+  
+  // Para outras rotas, servir o index.html (SPA behavior)
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Rota de teste para verificar se o servidor está funcionando
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    totalPagamentos: Object.keys(pagamentosConfirmados).length
+  });
+});
+
+// Inicializar dados de exemplo se estiver vazio (apenas para desenvolvimento)
+if (Object.keys(pagamentosConfirmados).length === 0) {
+  console.log('📝 Criando dados de exemplo...');
+  const exemploId = 'EXEMPLO_' + Date.now();
+  pagamentosConfirmados[exemploId] = {
+    id: exemploId,
+    pacote: 'Turbo - 150 Seguidores',
+    username: 'usuario_teste',
+    valor: 4.90,
+    serviceId: 3096,
+    quantity: 150,
+    status: 'pago',
+    timestampGerado: new Date(Date.now() - 3600000).toISOString(), // 1 hora atrás
+    timestampPago: new Date().toISOString()
+  };
+  salvarPagamentos();
+}
+
+// Servidor ouvindo na porta
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`📊 Admin disponível em: http://localhost:${PORT}/admin.html`);
+  console.log(`🏠 Site disponível em: http://localhost:${PORT}`);
+  console.log(`❤️ Health check: http://localhost:${PORT}/health`);
 });
