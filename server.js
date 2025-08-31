@@ -31,6 +31,58 @@ function salvarPagamentos() {
   fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
 }
 
+// ROTAS DO ADMIN PRIMEIRO - ANTES DE QUALQUER MIDDLEWARE
+app.get('/admin/dados', (req, res) => {
+  console.log('ADMIN DADOS CHAMADO');
+  res.setHeader('Content-Type', 'application/json');
+  res.json(pagamentosConfirmados || {});
+});
+
+app.get('/admin/stats', (req, res) => {
+  console.log('ADMIN STATS CHAMADO');
+  try {
+    const dados = Object.values(pagamentosConfirmados);
+    const agora = new Date();
+    const hoje = agora.toDateString();
+    
+    const pedidosHoje = dados.filter(p => {
+      if (!p.timestampGerado) return false;
+      return new Date(p.timestampGerado).toDateString() === hoje;
+    });
+    
+    const pagosHoje = dados.filter(p => {
+      if (!p.timestampPago) return false;
+      return new Date(p.timestampPago).toDateString() === hoje;
+    });
+    
+    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    
+    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
+    
+    const stats = {
+      pixGeradosHoje: pedidosHoje.length,
+      pixPagosHoje: pagosHoje.length,
+      faturamentoHoje: faturamentoHoje.toFixed(2),
+      conversaoHoje: conversaoHoje + '%',
+      totalPedidos: dados.length,
+      totalPagos: dados.filter(p => p.status === 'pago').length,
+      faturamentoTotal: faturamentoTotal.toFixed(2),
+      pacotesHoje: pedidosHoje.reduce((acc, p) => {
+        const pacote = p.pacote || 'Sem pacote';
+        acc[pacote] = (acc[pacote] || 0) + 1;
+        return acc;
+      }, {})
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.json(stats);
+  } catch (error) {
+    console.error('Erro nas stats:', error);
+    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
+  }
+});
+
 // Middleware de log simples para requisições
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -184,52 +236,6 @@ app.post('/substituir-pacote', async (req, res) => {
   } catch (error) {
     console.error('Erro:', error);
     res.json({ success: false, message: 'Erro interno' });
-  }
-});
-
-// ROTAS DO ADMIN - DEFINIDAS AQUI
-app.get('/admin/dados', (req, res) => {
-  res.json(pagamentosConfirmados);
-});
-
-app.get('/admin/stats', (req, res) => {
-  try {
-    const dados = Object.values(pagamentosConfirmados);
-    const agora = new Date();
-    const hoje = agora.toDateString();
-    
-    const pedidosHoje = dados.filter(p => {
-      if (!p.timestampGerado) return false;
-      return new Date(p.timestampGerado).toDateString() === hoje;
-    });
-    
-    const pagosHoje = dados.filter(p => {
-      if (!p.timestampPago) return false;
-      return new Date(p.timestampPago).toDateString() === hoje;
-    });
-    
-    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    
-    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
-    
-    res.json({
-      pixGeradosHoje: pedidosHoje.length,
-      pixPagosHoje: pagosHoje.length,
-      faturamentoHoje: faturamentoHoje.toFixed(2),
-      conversaoHoje: conversaoHoje + '%',
-      totalPedidos: dados.length,
-      totalPagos: dados.filter(p => p.status === 'pago').length,
-      faturamentoTotal: faturamentoTotal.toFixed(2),
-      pacotesHoje: pedidosHoje.reduce((acc, p) => {
-        const pacote = p.pacote || 'Sem pacote';
-        acc[pacote] = (acc[pacote] || 0) + 1;
-        return acc;
-      }, {})
-    });
-  } catch (error) {
-    console.error('Erro nas stats:', error);
-    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
   }
 });
 
