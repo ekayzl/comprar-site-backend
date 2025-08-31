@@ -37,9 +37,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Servir arquivos estáticos (para acessar o admin.html)
-app.use(express.static('.'));
-
 // 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
   const { valor } = req.body;
@@ -74,36 +71,7 @@ app.post('/gerar-pix', async (req, res) => {
   }
 });
 
-// 💾 NOVA ROTA: Salvar dados do pedido
-app.post('/salvar-pedido', (req, res) => {
-  try {
-    const { id, pacote, username, valor, serviceId, quantity } = req.body;
-    
-    if (!pagamentosConfirmados[id]) {
-      pagamentosConfirmados[id] = {};
-    }
-    
-    pagamentosConfirmados[id] = {
-      ...pagamentosConfirmados[id],
-      id,
-      pacote,
-      username,
-      valor,
-      serviceId,
-      quantity,
-      status: 'qr_gerado',
-      timestampGerado: new Date().toISOString()
-    };
-    
-    salvarPagamentos();
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Erro ao salvar pedido:', error);
-    res.status(500).json({ erro: 'Erro interno' });
-  }
-});
-
-// 🔔 Webhook Pix (atualizado para salvar mais dados)
+// 🔔 Webhook Pix (único, com persistência)
 app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
@@ -118,13 +86,7 @@ app.post('/webhook-pix', (req, res) => {
     }
 
     if (status === 'paid' || status === 'concluido') {
-      // ✅ MUDANÇA AQUI: salvar objeto completo em vez de só true
-      if (!pagamentosConfirmados[id]) {
-        pagamentosConfirmados[id] = {};
-      }
-      pagamentosConfirmados[id].status = 'pago';
-      pagamentosConfirmados[id].timestampPago = new Date().toISOString();
-      
+      pagamentosConfirmados[id] = true;
       salvarPagamentos();
       console.log(`✅ Pagamento confirmado: ${id}`);
     }
@@ -136,66 +98,11 @@ app.post('/webhook-pix', (req, res) => {
   }
 });
 
-// 🚦 Rota para consulta do status do pagamento (atualizada)
+// 🚦 Rota para consulta do status do pagamento
 app.get('/status-pagamento/:id', (req, res) => {
-  const id = req.params.id.toUpperCase();
-  const pedido = pagamentosConfirmados[id];
-  const confirmado = pedido?.status === 'pago';
+  const id = req.params.id.toUpperCase(); // ← aqui está a correção!
+  const confirmado = pagamentosConfirmados[id] === true;
   res.json({ confirmado });
-});
-
-// 📊 NOVA ROTA: Dados para admin
-app.get('/admin/dados', (req, res) => {
-  res.json(pagamentosConfirmados);
-});
-
-// 📈 NOVA ROTA: Estatísticas para admin
-app.get('/admin/stats', (req, res) => {
-  try {
-    const dados = Object.values(pagamentosConfirmados);
-    const agora = new Date();
-    const hoje = agora.toDateString();
-    
-    // Filtros por data
-    const pedidosHoje = dados.filter(p => {
-      if (!p.timestampGerado) return false;
-      return new Date(p.timestampGerado).toDateString() === hoje;
-    });
-    
-    const pagosHoje = dados.filter(p => {
-      if (!p.timestampPago) return false;
-      return new Date(p.timestampPago).toDateString() === hoje;
-    });
-    
-    // Cálculos
-    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    
-    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
-    
-    res.json({
-      // Hoje
-      pixGeradosHoje: pedidosHoje.length,
-      pixPagosHoje: pagosHoje.length,
-      faturamentoHoje: faturamentoHoje.toFixed(2),
-      conversaoHoje: conversaoHoje + '%',
-      
-      // Total
-      totalPedidos: dados.length,
-      totalPagos: dados.filter(p => p.status === 'pago').length,
-      faturamentoTotal: faturamentoTotal.toFixed(2),
-      
-      // Por pacote hoje
-      pacotesHoje: pedidosHoje.reduce((acc, p) => {
-        const pacote = p.pacote || 'Sem pacote';
-        acc[pacote] = (acc[pacote] || 0) + 1;
-        return acc;
-      }, {})
-    });
-  } catch (error) {
-    console.error('Erro nas stats:', error);
-    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
-  }
 });
 
 // Servidor ouvindo na porta
@@ -203,17 +110,17 @@ app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
 
+
+
+
+
+
+
+
 // No seu backend (Node.js/Express)
 app.post('/substituir-pacote', async (req, res) => {
   try {
     const { serviceId, link, quantity, pagamentoId } = req.body;
-    
-    // Atualizar status do pedido
-    if (pagamentosConfirmados[pagamentoId]) {
-      pagamentosConfirmados[pagamentoId].status = 'processando';
-      pagamentosConfirmados[pagamentoId].timestampProcessamento = new Date().toISOString();
-      salvarPagamentos();
-    }
     
     // Dados para a API SMM
     const reqData = {
@@ -234,12 +141,6 @@ app.post('/substituir-pacote', async (req, res) => {
     const result = await response.json();
     
     if (result.order) {
-      // Atualizar com sucesso
-      if (pagamentosConfirmados[pagamentoId]) {
-        pagamentosConfirmados[pagamentoId].status = 'processado';
-        pagamentosConfirmados[pagamentoId].orderId = result.order;
-        salvarPagamentos();
-      }
       res.json({ success: true, orderId: result.order });
     } else {
       res.json({ success: false, message: 'Erro na API SMM' });
