@@ -31,63 +31,14 @@ function salvarPagamentos() {
   fs.writeFileSync(PAGAMENTOS_FILE, JSON.stringify(pagamentosConfirmados));
 }
 
-// ROTAS DO ADMIN PRIMEIRO - ANTES DE QUALQUER MIDDLEWARE
-app.get('/admin/dados', (req, res) => {
-  console.log('ADMIN DADOS CHAMADO');
-  res.setHeader('Content-Type', 'application/json');
-  res.json(pagamentosConfirmados || {});
-});
-
-app.get('/admin/stats', (req, res) => {
-  console.log('ADMIN STATS CHAMADO');
-  try {
-    const dados = Object.values(pagamentosConfirmados);
-    const agora = new Date();
-    const hoje = agora.toDateString();
-    
-    const pedidosHoje = dados.filter(p => {
-      if (!p.timestampGerado) return false;
-      return new Date(p.timestampGerado).toDateString() === hoje;
-    });
-    
-    const pagosHoje = dados.filter(p => {
-      if (!p.timestampPago) return false;
-      return new Date(p.timestampPago).toDateString() === hoje;
-    });
-    
-    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
-    
-    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
-    
-    const stats = {
-      pixGeradosHoje: pedidosHoje.length,
-      pixPagosHoje: pagosHoje.length,
-      faturamentoHoje: faturamentoHoje.toFixed(2),
-      conversaoHoje: conversaoHoje + '%',
-      totalPedidos: dados.length,
-      totalPagos: dados.filter(p => p.status === 'pago').length,
-      faturamentoTotal: faturamentoTotal.toFixed(2),
-      pacotesHoje: pedidosHoje.reduce((acc, p) => {
-        const pacote = p.pacote || 'Sem pacote';
-        acc[pacote] = (acc[pacote] || 0) + 1;
-        return acc;
-      }, {})
-    };
-
-    res.setHeader('Content-Type', 'application/json');
-    res.json(stats);
-  } catch (error) {
-    console.error('Erro nas stats:', error);
-    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
-  }
-});
-
 // Middleware de log simples para requisições
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
+
+// Servir arquivos estáticos (para acessar o admin.html)
+app.use(express.static('.'));
 
 // 🔥 Gerar PIX
 app.post('/gerar-pix', async (req, res) => {
@@ -123,7 +74,7 @@ app.post('/gerar-pix', async (req, res) => {
   }
 });
 
-// 💾 Salvar dados do pedido
+// 💾 NOVA ROTA: Salvar dados do pedido
 app.post('/salvar-pedido', (req, res) => {
   try {
     const { id, pacote, username, valor, serviceId, quantity } = req.body;
@@ -152,11 +103,12 @@ app.post('/salvar-pedido', (req, res) => {
   }
 });
 
-// 🔔 Webhook Pix
+// 🔔 Webhook Pix (atualizado para salvar mais dados)
 app.post('/webhook-pix', (req, res) => {
   try {
     console.log('🔥 Webhook Recebido:', JSON.stringify(req.body, null, 2));
     const data = req.body?.data || req.body;
+    console.log('ID recebido no webhook:', data.id);
 
     const { id, status } = data;
 
@@ -166,6 +118,7 @@ app.post('/webhook-pix', (req, res) => {
     }
 
     if (status === 'paid' || status === 'concluido') {
+      // ✅ MUDANÇA AQUI: salvar objeto completo em vez de só true
       if (!pagamentosConfirmados[id]) {
         pagamentosConfirmados[id] = {};
       }
@@ -183,7 +136,7 @@ app.post('/webhook-pix', (req, res) => {
   }
 });
 
-// 🚦 Status do pagamento
+// 🚦 Rota para consulta do status do pagamento (atualizada)
 app.get('/status-pagamento/:id', (req, res) => {
   const id = req.params.id.toUpperCase();
   const pedido = pagamentosConfirmados[id];
@@ -191,7 +144,66 @@ app.get('/status-pagamento/:id', (req, res) => {
   res.json({ confirmado });
 });
 
-// 📦 Processar pedido SMM
+// 📊 NOVA ROTA: Dados para admin
+app.get('/admin/dados', (req, res) => {
+  res.json(pagamentosConfirmados);
+});
+
+// 📈 NOVA ROTA: Estatísticas para admin
+app.get('/admin/stats', (req, res) => {
+  try {
+    const dados = Object.values(pagamentosConfirmados);
+    const agora = new Date();
+    const hoje = agora.toDateString();
+    
+    // Filtros por data
+    const pedidosHoje = dados.filter(p => {
+      if (!p.timestampGerado) return false;
+      return new Date(p.timestampGerado).toDateString() === hoje;
+    });
+    
+    const pagosHoje = dados.filter(p => {
+      if (!p.timestampPago) return false;
+      return new Date(p.timestampPago).toDateString() === hoje;
+    });
+    
+    // Cálculos
+    const faturamentoHoje = pagosHoje.reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    const faturamentoTotal = dados.filter(p => p.status === 'pago').reduce((sum, p) => sum + (parseFloat(p.valor) || 0), 0);
+    
+    const conversaoHoje = pedidosHoje.length > 0 ? ((pagosHoje.length / pedidosHoje.length) * 100).toFixed(1) : '0.0';
+    
+    res.json({
+      // Hoje
+      pixGeradosHoje: pedidosHoje.length,
+      pixPagosHoje: pagosHoje.length,
+      faturamentoHoje: faturamentoHoje.toFixed(2),
+      conversaoHoje: conversaoHoje + '%',
+      
+      // Total
+      totalPedidos: dados.length,
+      totalPagos: dados.filter(p => p.status === 'pago').length,
+      faturamentoTotal: faturamentoTotal.toFixed(2),
+      
+      // Por pacote hoje
+      pacotesHoje: pedidosHoje.reduce((acc, p) => {
+        const pacote = p.pacote || 'Sem pacote';
+        acc[pacote] = (acc[pacote] || 0) + 1;
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Erro nas stats:', error);
+    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
+  }
+});
+
+// Servidor ouvindo na porta
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
+
+// No seu backend (Node.js/Express)
 app.post('/substituir-pacote', async (req, res) => {
   try {
     const { serviceId, link, quantity, pagamentoId } = req.body;
@@ -237,12 +249,4 @@ app.post('/substituir-pacote', async (req, res) => {
     console.error('Erro:', error);
     res.json({ success: false, message: 'Erro interno' });
   }
-});
-
-// Servir arquivos estáticos
-app.use(express.static('.'));
-
-// Servidor ouvindo na porta
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
 });
