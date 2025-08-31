@@ -124,7 +124,7 @@ app.post('/substituir-pacote', async (req, res) => {
     
     // Dados para a API SMM
     const reqData = {
-      key: '55ab6792e23900bfeb46c48b33527349',
+      key: 'a0144a9176a747ef6b4919453faa4cea',
       action: 'add',
       service: serviceId,
       link: link,
